@@ -1,63 +1,46 @@
-# API Jardín Infantil - Entrega 3 (Backend)
+# Jardín Infantil API
 
-API REST para registrar la asistencia y entrega de niños, controlar la entrega del complemento nutricional y generar reportes para la administradora.
+API REST del proyecto móvil. Usa Node.js 18+, Express 5, MongoDB y Mongoose.
 
-## Tecnologías
-- Node.js 18+
-- Express 5
-- MongoDB con Mongoose
+## Arranque local
 
-## Instalación
+1. Copia `.env.example` como `.env` y cambia `JWT_SECRET` y las dos contraseñas de desarrollo.
+2. Inicia MongoDB según `MONGODB_URI`.
+3. En esta carpeta ejecuta `npm install`, `npm run seed` y `npm start`.
+4. Health: `GET http://localhost:3000/api/health`.
 
-1. Instala MongoDB Community Server y asegúrate de que esté corriendo en `mongodb://127.0.0.1:27017`.
-2. Copia `.env.example` como `.env` (opcional; si no existe, usa los valores por defecto).
-3. Instala dependencias y carga datos de prueba:
+`npm run seed` restablece los datos de niños e inventario y crea las cuentas de demostración configuradas en `.env`. No lo uses sobre una base con datos que quieras conservar. Las contraseñas se guardan con hash scrypt. Usa `SEED_DEMO_USERS=0` al desactivar esas cuentas.
 
-```bash
-npm install
-npm run seed
-```
+## Acceso de desarrollo
 
-4. Inicia el servidor:
+- Administradora: `admin@jardin.local` / `JardinLocal2026!`
+- Cuidadora: `cuidadora@jardin.local` / `JardinLocal2026!`
 
-```bash
-npm start
-```
+Cámbialas en `.env`. En producción se exige `JWT_SECRET`; configura HTTPS, `CORS_ORIGIN` y `SEED_DEMO_USERS=0`.
 
-La API queda en `http://localhost:3000/api`.
+## Rutas
 
-## Endpoints
-
-| Método | Ruta | Descripción |
+| Método y ruta | Permiso | Uso |
 |---|---|---|
-| GET | /api/children | Lista niños (filtro opcional `?classroom=`) |
-| POST | /api/children | Crea un niño con sus acudientes autorizados |
-| GET | /api/children/:id | Obtiene un niño |
-| POST | /api/attendance | Registra la llegada del niño |
-| PATCH | /api/attendance/:id/checkout | Registra la entrega (valida acudiente autorizado) |
-| GET | /api/attendance?date=&status= | Asistencias; `status=presente` muestra niños pendientes de entrega |
-| POST | /api/aid-deliveries | Entrega de ayuda nutricional (valida existencias y descuenta inventario) |
-| GET | /api/aid-deliveries?date= | Entregas de ayuda por fecha |
-| GET | /api/inventory | Existencias por tipo de kit |
-| GET | /api/reports/summary?date= o ?month= | Reporte para la administradora |
+| `POST /api/auth/login` | Público | Valida correo y contraseña; devuelve token y rol. |
+| `GET /api/auth/me` | Sesión | Devuelve la cuenta actual. |
+| `GET /api/children?classroom=` | Sesión | Lista niños activos. |
+| `GET /api/children/:id` | Sesión | Perfil y acudientes autorizados. |
+| `POST /api/children` | Administradora | Crea niño y acudientes. |
+| `PUT /api/children/:id` | Administradora | Actualiza datos y acudientes. |
+| `DELETE /api/children/:id` | Administradora | Baja lógica, preserva historial. |
+| `GET /api/attendance?date=`, `?month=`, `?from=&to=` | Sesión | Historial de llegadas y entregas. |
+| `POST /api/attendance` | Sesión | Registra llegada. |
+| `PATCH /api/attendance/:id/checkout` | Sesión | Entrega solo a un acudiente autorizado. |
+| `GET /api/aid-deliveries?date=`, `?month=` | Sesión | Historial de alimentación servida. |
+| `POST /api/aid-deliveries` | Sesión | Registra una entrega, descuenta stock y bloquea duplicados diarios. |
+| `GET /api/inventory` | Sesión | Existencias actuales. |
+| `POST /api/inventory/restock` | Administradora | Reposición con fecha, nota y registro de movimiento. |
+| `GET /api/inventory/movements?date=`, `?month=` | Administradora | Historial de reposiciones. |
+| `GET /api/reports/summary?date=` o `?month=` | Administradora | Totales y detalle por niño y kit. |
 
-## Reglas de negocio
+Las solicitudes protegidas envían `Authorization: Bearer <token>`. Los roles los vuelve a validar el servidor; ocultar un control en Android no sustituye el permiso de API.
 
-1. **Entrega a acudiente autorizado:** `PATCH /checkout` solo se acepta si el nombre y documento de quien recoge coinciden con la lista de acudientes del niño. Si no coinciden, responde `403`.
-2. **Ayuda nutricional con existencias:** `POST /aid-deliveries` descuenta el inventario con cada entrega. Si no hay stock suficiente, responde `409` y no descuenta nada.
-3. **Una llegada por niño y día:** si ya existe, responde `409`.
-4. **Una entrega por niño:** un niño ya entregado no puede volver a entregarse (`409`).
+## Postman
 
-## Códigos de respuesta
-
-- `200` / `201`: operación exitosa.
-- `400`: datos inválidos o faltantes.
-- `403`: persona no autorizada para recoger.
-- `404`: recurso no encontrado.
-- `409`: conflicto (ya registrado o sin existencias).
-
-## Pruebas con Postman
-
-1. Abre Postman → **Import** → selecciona `docs/postman_collection.json`.
-2. Ejecuta **Run collection** en orden (1 a 14). Las variables `childId` y `attendanceId` se llenan solas.
-3. Para repetir las pruebas desde cero, ejecuta `npm run seed` y vuelve a correr la colección.
+Importa `docs/postman_collection.json`. La colección inicia sesión y guarda el token. Su secuencia cubre autenticación, gestión de niños, asistencia, alimentación, reposiciones, movimientos y reportes; las fechas se calculan con la zona horaria de Colombia.
