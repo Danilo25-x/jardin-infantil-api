@@ -20,7 +20,7 @@ function errorHandler(err, req, res, next) {
   }
   if (status === 500) console.error(err);
 
-  res.status(status).json({ error: message });
+  res.status(status).json(err.code ? { error: message, code: err.code } : { error: message });
 }
 
 module.exports = { notFound, errorHandler };

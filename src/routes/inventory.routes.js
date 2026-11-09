@@ -7,4 +7,6 @@ router.use(requireAuth);
 router.get('/', c.list);
 router.get('/movements', requireRole('administradora'), c.movements);
 router.post('/restock', requireRole('administradora'), c.restock);
+router.post('/', requireRole('administradora'), c.create);
+router.put('/:kitType', requireRole('administradora'), c.update);
 module.exports = router;

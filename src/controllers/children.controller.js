@@ -1,4 +1,5 @@
 const Child = require('../models/Child');
+const Inventory = require('../models/Inventory');
 const HttpError = require('../utils/httpError');
 const { isValidDate } = require('../utils/dates');
 
@@ -17,7 +18,7 @@ function childData(body) {
     classroom,
     birthDate,
     document: String(body.document || '').trim(),
-    complement: String(body.complement || 'Según inventario').trim(),
+    complement: String(body.complement || '').trim(),
     authorizedGuardians: guardians.map(({ name: guardianName, document, relation }) => ({ name: String(guardianName).trim(), document: String(document).trim(), relation: String(relation || 'Acudiente').trim() })),
   };
 }
@@ -31,8 +32,15 @@ exports.list = async (req, res) => {
   res.json(await Child.find(filter).sort({ name: 1 }));
 };
 
+async function assertCatalogSupport(complement) {
+  if (!complement) return;
+  if (!(await Inventory.exists({ kitType: complement }))) throw new HttpError(400, 'El apoyo indicado no existe en el catálogo del jardín.');
+}
+
 exports.create = async (req, res) => {
-  const child = await Child.create(childData(req.body));
+  const data = childData(req.body);
+  await assertCatalogSupport(data.complement);
+  const child = await Child.create(data);
   res.status(201).json(child);
 };
 
@@ -44,6 +52,7 @@ exports.getById = async (req, res) => {
 
 exports.update = async (req, res) => {
   const data = childData(req.body);
+  await assertCatalogSupport(data.complement);
   const child = await Child.findByIdAndUpdate(req.params.id, { $set: data }, { new: true, runValidators: true });
   if (!child) throw new HttpError(404, 'Niño no encontrado');
   res.json(child);

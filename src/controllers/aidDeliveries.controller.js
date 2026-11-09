@@ -1,8 +1,11 @@
 const AidDelivery = require('../models/AidDelivery');
 const Child = require('../models/Child');
 const Inventory = require('../models/Inventory');
+const InventoryMovement = require('../models/InventoryMovement');
 const HttpError = require('../utils/httpError');
 const { todayISO, isValidDate, isValidMonth } = require('../utils/dates');
+
+const PUEDE_APOYO_ADICIONAL = ['administradora', 'nutricionista'];
 
 exports.create = async (req, res) => {
   const { childId, quantity } = req.body;
@@ -12,6 +15,9 @@ exports.create = async (req, res) => {
   const guardianName = String(req.body.guardianName || '').trim();
   const nutritionNote = String(req.body.nutritionNote || '').trim();
   const nutritionist = String(req.body.nutritionist || '').trim();
+  if (deliveryType === 'adicional' && !PUEDE_APOYO_ADICIONAL.includes(req.user.role)) {
+    throw new HttpError(403, 'Solo nutrición o administración pueden registrar apoyos adicionales.');
+  }
   if (!childId) throw new HttpError(400, 'childId es obligatorio');
   if (!kitType) throw new HttpError(400, 'kitType es obligatorio');
   if (!['jardin', 'hogar', 'adicional'].includes(deliveryType)) throw new HttpError(400, 'deliveryType debe ser jardin, hogar o adicional');
@@ -26,14 +32,22 @@ exports.create = async (req, res) => {
     if (!(await Inventory.exists({ kitType }))) throw new HttpError(404, 'Tipo de kit no existe en el inventario');
     throw new HttpError(409, 'No hay existencias suficientes del kit');
   }
+  let delivery;
   try {
-    const delivery = await AidDelivery.create({ child: childId, date, deliveryType, kitType, quantity, guardianName, nutritionNote, nutritionist, stockAfter: updated.stock, deliveredBy: req.user.id });
-    res.status(201).json(delivery);
+    delivery = await AidDelivery.create({ child: childId, date, deliveryType, kitType, quantity, guardianName, nutritionNote, nutritionist, stockAfter: updated.stock, deliveredBy: req.user.id });
   } catch (error) {
     await Inventory.updateOne({ kitType }, { $inc: { stock: quantity } });
     if (error.code === 11000) throw new HttpError(409, 'Ya existe ese registro para el niño, fecha y producto');
     throw error;
   }
+  try {
+    await InventoryMovement.create({ kitType, quantity, date, type: 'salida', note: `Entrega para ${deliveryType}`, reference: String(delivery._id), createdBy: req.user.id });
+  } catch (error) {
+    await AidDelivery.deleteOne({ _id: delivery._id });
+    await Inventory.updateOne({ kitType }, { $inc: { stock: quantity } });
+    throw error;
+  }
+  res.status(201).json(delivery);
 };
 
 exports.list = async (req, res) => {

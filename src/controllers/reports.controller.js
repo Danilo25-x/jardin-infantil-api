@@ -1,5 +1,6 @@
 const Attendance = require('../models/Attendance');
 const AidDelivery = require('../models/AidDelivery');
+const InventoryMovement = require('../models/InventoryMovement');
 const HttpError = require('../utils/httpError');
 const { todayISO, isValidDate, isValidMonth } = require('../utils/dates');
 
@@ -20,7 +21,7 @@ exports.summary = async (req, res) => {
     period = { date: day };
   }
 
-  const [attendanceByChild, pendingPickup, aidByKit, aidByChild] = await Promise.all([
+  const [attendanceByChild, pendingPickup, aidByKit, aidByChild, inventoryByKit] = await Promise.all([
     Attendance.aggregate([
       { $match: match },
       {
@@ -59,6 +60,19 @@ exports.summary = async (req, res) => {
       { $project: { _id: 0, childId: '$_id', name: '$child.name', deliveries: 1, units: 1 } },
       { $sort: { name: 1 } },
     ]),
+    // Movimientos sin campo type se tratan como entradas (son anteriores a las salidas registradas).
+    InventoryMovement.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$kitType',
+          entradas: { $sum: { $cond: [{ $ne: ['$type', 'salida'] }, '$quantity', 0] } },
+          salidas: { $sum: { $cond: [{ $eq: ['$type', 'salida'] }, '$quantity', 0] } },
+        },
+      },
+      { $project: { _id: 0, kitType: '$_id', entradas: 1, salidas: 1 } },
+      { $sort: { kitType: 1 } },
+    ]),
   ]);
 
   res.json({
@@ -68,9 +82,12 @@ exports.summary = async (req, res) => {
       pendingPickup,
       aidDeliveries: aidByKit.reduce((s, k) => s + k.deliveries, 0),
       aidUnits: aidByKit.reduce((s, k) => s + k.units, 0),
+      inventoryIn: inventoryByKit.reduce((s, k) => s + k.entradas, 0),
+      inventoryOut: inventoryByKit.reduce((s, k) => s + k.salidas, 0),
     },
     attendanceByChild,
     aidByChild,
     aidByKit,
+    inventoryByKit,
   });
 };

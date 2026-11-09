@@ -11,7 +11,7 @@ const childSchema = new mongoose.Schema({
   classroom: { type: String, required: [true, 'El salón es obligatorio'], trim: true },
   birthDate: { type: String, default: null },
   document: { type: String, trim: true, default: '' },
-  complement: { type: String, trim: true, default: 'Según inventario' },
+  complement: { type: String, trim: true, default: '' },
   authorizedGuardians: {
     type: [guardianSchema],
     validate: [(items) => items.length > 0, 'Debe tener al menos un acudiente autorizado'],
