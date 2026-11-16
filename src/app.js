@@ -18,6 +18,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/children', require('./routes/children.routes'));
 app.use('/api/attendance', require('./routes/attendance.routes'));
 app.use('/api/aid-deliveries', require('./routes/aidDeliveries.routes'));
+app.use('/api/kits', require('./routes/kits.routes'));
 app.use('/api/inventory', require('./routes/inventory.routes'));
 app.use('/api/reports', require('./routes/reports.routes'));
 app.use('/api/programacion', require('./routes/programacion.routes'));

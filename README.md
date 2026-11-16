@@ -45,7 +45,7 @@ Cámbialas en `.env`. En producción se exige `JWT_SECRET`; configura HTTPS, `CO
 | `GET /api/children/:id/programacion?date=&vigencia=&modalidad=` | Sesión | Programación de AAVN según la edad en meses cumplidos del niño. Requiere fecha de nacimiento. |
 | `GET /api/programacion?vigencia=&modalidad=` | Sesión | Programación completa de AAVN por vigencia y modalidad (Anexo 2, vigencia 2026). |
 | `GET /api/children/:id/plans` | Sesión | Complementos indicados por nutrición del niño. |
-| `POST /api/children/:id/plans` | Administradora, nutricionista | Agrega un complemento indicado, sin modificar el apoyo ordinario. |
+| `POST /api/children/:id/plans` | Administradora, nutricionista | Agrega un complemento sin modificar el apoyo ordinario. `origen: "icbf"` (por defecto) calcula los productos por edad desde la programación y exige fecha de nacimiento; `origen: "nutricion"` usa los `items` indicados (`name` del inventario, `quantity` entera, `unit`), exige `notes` como justificación y no depende de la edad. Un niño puede tener planes de ambos orígenes a la vez. |
 | `PATCH /api/children/:id/plans/:planId/finish` | Administradora, nutricionista | Finaliza un complemento; el registro se conserva. |
 
 Las solicitudes protegidas envían `Authorization: Bearer <token>`. Roles: `cuidadora` (consulta y entregas básicas), `nutricionista` (además, complementos indicados y apoyos adicionales) y `administradora` (todo lo anterior, más niños, inventario y reportes). Los roles los vuelve a validar el servidor; ocultar un control en Android no sustituye el permiso de API.
